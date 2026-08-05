@@ -1,4 +1,4 @@
-import supabase from '../config/supabase.js';
+import { createSupabaseClient } from "../config/supabase.js";
 
 /**
  * Registers a new user in Supabase Auth, then creates the matching row in
@@ -6,12 +6,21 @@ import supabase from '../config/supabase.js';
  * (POST /profiles/:id/student-id) after the account exists — this function
  * just creates the account and leaves verification_status = 'pending'.
  */
-export async function registerUser({ email, password, full_name, school, department, level }) {
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true, // set false if you want Supabase to send a confirmation email instead
-  });
+export async function registerUser({
+  email,
+  password,
+  full_name,
+  school,
+  department,
+  level,
+}) {
+  const serviceSupabase = createSupabaseClient();
+  const { data: authData, error: authError } =
+    await serviceSupabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // set false if you want Supabase to send a confirmation email instead
+    });
 
   if (authError) {
     const err = new Error(authError.message);
@@ -21,19 +30,19 @@ export async function registerUser({ email, password, full_name, school, departm
 
   const userId = authData.user.id;
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+  const { data: profile, error: profileError } = await serviceSupabase
+    .from("profiles")
     .insert({
       id: userId,
       full_name,
       school,
       department,
       level,
-      verification_status: 'pending',
+      verification_status: "pending",
       verified: false,
       reputation_score: 0,
       gamification_points: 0,
-      rank: 'Bronze Mentor',
+      rank: "Bronze Mentor",
     })
     .select()
     .single();
@@ -55,15 +64,20 @@ export async function registerUser({ email, password, full_name, school, departm
  * `Authorization: Bearer <access_token>` on future requests.
  */
 export async function loginUser({ email, password }) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const authSupabase = createSupabaseClient();
+  const { data, error } = await authSupabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
-    const err = new Error('Invalid email or password.');
+    const err = new Error("Invalid email or password.");
     err.status = 401;
     throw err;
   }
 
-  return data; // { user, session }
+  const profile = await getCurrentProfile(data.user.id);
+  return { ...data, profile }; // { user, session, profile }
 }
 
 /**
@@ -72,7 +86,8 @@ export async function loginUser({ email, password }) {
  * The frontend should also clear its locally stored token regardless.
  */
 export async function logoutUser(accessToken) {
-  const { error } = await supabase.auth.admin.signOut(accessToken);
+  const serviceSupabase = createSupabaseClient();
+  const { error } = await serviceSupabase.auth.admin.signOut(accessToken);
   if (error) {
     const err = new Error(error.message);
     err.status = 400;
@@ -85,19 +100,22 @@ export async function logoutUser(accessToken) {
  * user (req.user.id is set by requireAuth middleware).
  */
 
- export async function getCurrentProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
+export async function getCurrentProfile(
+  userId,
+  client = createSupabaseClient(),
+) {
+  const { data, error } = await client
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
     .single();
 
   if (error) {
     // PGRST116 = Supabase's code for "no rows matched" — a real 404.
     // Anything else (network failure, timeout, etc.) should surface as
     // a real error, not be disguised as "not found".
-    if (error.code === 'PGRST116') {
-      const err = new Error('Profile not found.');
+    if (error.code === "PGRST116") {
+      const err = new Error("Profile not found.");
       err.status = 404;
       throw err;
     }
