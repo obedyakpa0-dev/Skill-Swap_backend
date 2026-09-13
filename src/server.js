@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import authRoutes from './routes/auth.routes.js';
 import profilesRoutes from './routes/profiles.routes.js';
@@ -79,8 +79,8 @@ const loginLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) =>
-    `${req.ip}:${(req.body?.email || "").trim().toLowerCase()}`,
+  keyGenerator:  (req) =>
+    `${ipKeyGenerator(req.ip)}:${(req.body?.email || "").trim().toLowerCase()}`,
   message: { error: "Too many attempts, please try again later." },
 });
 
