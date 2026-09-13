@@ -10,7 +10,8 @@ export const upload = multer({
   fileFilter: (req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.mimetype)) {
-      return cb(new Error('Only JPEG, PNG, or WEBP images are allowed.'));
+      const err = new Error('Only JPEG, PNG, or WEBP images are allowed.');
+      err.status = 400;
     }
     cb(null, true);
   },

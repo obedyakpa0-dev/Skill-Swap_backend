@@ -105,6 +105,13 @@ export async function submitReview(reviewerId, {
     throw err;
   }
 
+  const actualReviewedId = user1_id === reviewerId ? user1_id : user2_id;
+  if (reviewee_id !== actualReviewedId) {
+    const err = new Error('reviewee_id does not match the other participant in this session.')
+    err.status = 400;
+    throw err;
+  }
+
   const { data: existing } = await supabase
     .from('reviews')
     .select('id')

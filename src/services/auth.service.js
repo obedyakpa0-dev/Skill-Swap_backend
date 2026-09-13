@@ -49,7 +49,7 @@ export async function registerUser({
 
   if (profileError) {
     // Roll back the auth user so we don't end up with an orphaned account.
-    await supabase.auth.admin.deleteUser(userId);
+    await serviceSupabase.auth.admin.deleteUser(userId);
     const err = new Error(profileError.message);
     err.status = 400;
     throw err;
